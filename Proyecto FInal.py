@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog
 import sys
-
+import time
 
 class Process:
     def __init__(self, pid, arrtime, cputime, timerem, timeexit, priority, io):
@@ -13,16 +13,43 @@ class Process:
         self.priority = priority
         self.io = io
 
+def validate_prio(p):
+    for x in readyqueue:
+        if x.priority > p.priority:
+            return False
+        elif x.priority == p.priority and x.arrtime < p.arrtime:
+            return False
+        elif x.priority == p.priority and x.arrtime == p.arrtime:
+            return True
+
+def validate_arrtime(p):
+    return any(x.arrtime < p.arrtime for x in readyqueue)
 
 def run_schedule():
     print()
     cpus = []
+    readyqueue = []
+    timer = 0
+    quantaux = 1
     for x in range(0, cpunumber):
         cpus.append("EMPTY")
-    while any (p.timerem > 0 for p in processlist):
-        for i in range(0, cpunumber):
-           if cpu[i] == "EMPTY":
-               cpu[i] = 0
+    while True:
+        if not readyqueue:
+            break
+        for p in processlist:
+            if timer == p.arrtime:
+                readyqueue.append(p)
+        if quantaux <= quantum and any(c == "EMPTY" for c in cpus):
+            for i in range(0, cpunumber):
+                for p in readyqueue:
+                    if validate_prio(p):
+                        cpu[i] = p
+                        readyqueue.remove(p)
+        quantaux += 1
+        if quantaux > quantum:
+            quantaux = 1
+        time.sleep(5)
+        timer += 1
 
 
 root = tk.Tk()
