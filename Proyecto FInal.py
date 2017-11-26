@@ -13,43 +13,138 @@ class Process:
         self.priority = priority
         self.io = io
 
+    def __repr__(self):
+        return str(self.pid) + " " + str(self.arrtime) + " " + str(self.cputime) + " " + str(self.timerem) \
+        + " " + str(self.timeexit) + " " + str(self.priority)
+
+#Validación si existe un proceso con mayor prioridad
 def validate_prio(p):
+    global readyqueue
+    flag = False
     for x in readyqueue:
         if x.priority > p.priority:
-            return False
+            flag = True
+            break
         elif x.priority == p.priority and x.arrtime < p.arrtime:
-            return False
-        elif x.priority == p.priority and x.arrtime == p.arrtime:
-            return True
+            flag = True
+            break
+    return flag
 
-def validate_arrtime(p):
-    return any(x.arrtime < p.arrtime for x in readyqueue)
-
-def run_schedule():
-    print()
+#No Expropiativo
+def run_schedule_nonpreempt():
+    global readyqueue
+    #Listas y filas
     cpus = []
     readyqueue = []
+    blockedqueue = []
+    blockedfor = []
+    #Contador de tiempo
     timer = 0
-    quantaux = 1
+    #Inicializar cpus en vacio
     for x in range(0, cpunumber):
         cpus.append("EMPTY")
+    #ciclo de simulación
     while True:
-        if not readyqueue:
-            break
+        #Ciclo para actualizar valores en ejecución
+        for i in range(0, cpunumber):
+            if cpus[i] != "EMPTY":
+                #Actualizar el tiempo restante de cpu
+                cpus[i].timerem = cpus[i].timerem - 1
+
+                #Si ya acabo de ejecutarse, salirse del cpu y actualizar tiempo de salida
+                if cpus[i].timerem == 0:
+                    for p in processlist:
+                        if cpus[i].pid == p.pid:
+                            p.timeexit = timer
+                    cpus[i] = "EMPTY"
+                
+                else:
+                    timeio = cpus[i].cputime - cpus[i].timerem
+                    #Si hay un tiempo de I/O pasar proceso a cola de bloqueados y desalojar cpu
+                    if timeio in cpus[i].io:
+                        blockedfor.append(cpus[i].io[timeio])
+                        blockedqueue.append(cpus[i])
+                        cpus[i] = "EMPTY"
+        #Si el tiempo coincide con el tiempo de llegada de un procesom agregarlo a la cola de listos           
         for p in processlist:
             if timer == p.arrtime:
                 readyqueue.append(p)
-        if quantaux <= quantum and any(c == "EMPTY" for c in cpus):
+                
+        #Si la operación de I/O ha finalizado, meter el proceso a la cola de listos
+        for p in range(0, len(blockedqueue)):
+            if blockedfor[p] == 0:
+                readyqueue.append(blockedqueue[p])
+                blockedqueue.remove(blockedqueue[p])
+                blockedfor.remove(blockedfor[p])
+                
+        #Si hay un cpu vacio
+        if any(c == "EMPTY" for c in cpus):
             for i in range(0, cpunumber):
                 for p in readyqueue:
-                    if validate_prio(p):
-                        cpu[i] = p
+                    #Si no existe un proceso con mayor prioridad en la pila de listos y el cpu iterado esta vacio
+                    #meterlo en ese cpu y sacarlo de la cola de listos
+                    if not validate_prio(p) and cpus[i] == "EMPTY":
+                        timer += contextswitch
+                        cpus[i] = p
                         readyqueue.remove(p)
-        quantaux += 1
-        if quantaux > quantum:
-            quantaux = 1
-        time.sleep(5)
+        #Impresión de datos
+        for c in range(0,cpunumber):
+            print("CPU ", c+1)
+            print()
+            print("TIEMPO")
+            print(timer)
+            print()
+            print("LISTOS")
+            for r in readyqueue:
+                print(r.pid, end=" ")
+            print()
+            print("CPU")
+            if cpus[c] == "EMPTY":
+                print(cpus[c])
+            else:
+                print(cpus[c].pid)
+            print()
+            print("BLOQUEADOS")
+            for blocked in blockedqueue:
+                print(blocked.pid, end=" ")
+            print()
+            print("=============================")
+            
+        #Actualización del timer
         timer += 1
+
+        #Actualización de timers de operacioes I/O
+        for b in range(0, len(blockedfor)):
+            blockedfor[b] -= 1
+
+        #Si ya no quedan procesos por ejecutar, salir del ciclo
+        if not any(p.timeexit == 0 for p in processlist):
+            break
+    #Inicialización de listas para datos
+    waitingtime = []
+    turnaround = []
+    
+    for p in range(0, len(processlist)):
+        #Calcular Turnaround = Tiempo de salida - tiempo de llegada
+        turnaround.append(processlist[p].timeexit - processlist[p].arrtime)
+        #Calcular Tiempo de espera = Turnaround - tiempo de cpu
+        waitingtime.append(turnaround[p] - processlist[p].cputime)
+        print(processlist[p].pid, " T.ESPERA: ", waitingtime[p], " TURNAROUND: ", turnaround[p])
+        print()
+    acum1 = 0
+    acum2 = 0
+    #Obtener promedios
+    for t in range(0, len(turnaround)):
+        acum1 += turnaround[t]
+        acum2 += waitingtime[t]
+
+    print("T.ESPERA PROMEDIO: ", float(acum2/len(processlist)))
+    print()
+    print("TURNAROUND PROMEDIO: ", float(acum1/len(processlist)))
+
+    
+    
+        
 
 
 root = tk.Tk()
@@ -66,33 +161,28 @@ if lines[0] == "PrioPreentive" or lines[0] == "PrioNotPreentive":
     politica = lines[0]
 else:
     sys.exit()
-print("IM HERE")
-print(lines[0])
+
 w1,w2 = lines[1].split(" ")
-print(isinstance(int(w2), int))
 
 if w1 == "QUANTUM" and isinstance(int(w2), int):
     quantum = int(w2)
 else:
     sys.exit()
-print("IM HERE")
-print(w1,w2)
+
 w1, w2, w3 = lines[2].split(" ")
-print (isinstance(w3, int))
+
 if w1 == "CONTEXT" and w2 == "SWITCH" and isinstance(int(w3), int):
     contextswitch = int(w3)
 else:
     sys.exit()
-print("IM HERE")
-print(w1,w2,w3)
+
 w1, w2 = lines[3].split(" ")
 
 if w1 == "CPUS" and isinstance(int(w2), int):
     cpunumber = int(w2)
 else:
     sys.exit()
-print("IM HERE")
-print(w1,w2)
+
 processlist = []
 
 for iter in range(4, len(lines)):
@@ -101,26 +191,27 @@ for iter in range(4, len(lines)):
         break
     else:
         w = lines[iter].split(" ")
-        print(w)
         w0 = w[0]
-        print(w0)
         w1 = w[1]
         w2 = w[2]
         w3 = w[3]
-        if isinstance(int(w0), int) and isinstance(int(w1), int) and isinstance(int(w2), int) and isinstance(int(w3), int):
-            if len(w) > 4 and w[4] == "I/O":
-                for i in range(5, len(w)-1):
-                    wi = w[i]
-                    wi1 = w[i+1]
-                    if isinstance(int(wi), int) and isinstance(int(wi1), int):
-                        iodictionary[int(wi)] = int(wi1)
-                        i = i+1
-                    else:
-                        sys.exit()
+        if isinstance(int(w0), int) and isinstance(int(w1), int) and isinstance(int(w2), int):
+            if w[3] == "PRIORITY":
+                w4 = w[4]
+                if len(w) > 5 and w[5] == "I/O":
+                    for i in range(6, len(w)-1):
+                        if i % 2 == 0:
+                            wi = w[i]
+                            wi1 = w[i+1]
+                            if isinstance(int(wi), int) and isinstance(int(wi1), int):
+                                iodictionary[int(wi)] = int(wi1)
+                            else:
+                                sys.exit()
         else:
             sys.exit()
-        process = Process(int(w0), int(w1), int(w2), int(w2), 0, int(w3), iodictionary)
+        process = Process(int(w0), int(w1), int(w2), int(w2), 0, int(w4), iodictionary)
         processlist.append(process)
-
-run_schedule()
+        
+if politica == "PrioNotPreentive":
+    run_schedule_nonpreempt()
             
