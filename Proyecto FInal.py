@@ -4,8 +4,9 @@ import sys
 import time
 
 class Process:
-    def __init__(self, pid, arrtime, cputime, timerem, timeexit, priority, io):
+    def __init__(self, pid, proccid, arrtime, cputime, timerem, timeexit, priority, io):
         self.pid = pid
+        self.proccid = proccid
         self.arrtime = arrtime
         self.cputime = cputime
         self.timerem = timerem
@@ -101,17 +102,17 @@ def run_schedule_nonpreempt():
             print()
             print("LISTOS")
             for r in readyqueue:
-                print(r.pid, "(", r.timerem,")",end=" ")
+                print(r.proccid, "(", r.timerem,")",end=" ")
             print()
             print("CPU")
             if cpus[c] == "EMPTY":
                 print(cpus[c])
             else:
-                print(cpus[c].pid, "(", cpus[c].timerem, ")")
+                print(cpus[c].proccid, "(", cpus[c].timerem, ")")
             print()
             print("BLOQUEADOS")
             for blocked in blockedqueue:
-                print(blocked.pid, end=" ")
+                print(blocked.proccid, end=" ")
             print()
             print("=============================")
             
@@ -128,13 +129,13 @@ def run_schedule_nonpreempt():
     #Inicialización de listas para datos
     waitingtime = []
     turnaround = []
-    
+    print("========================NONPREEMPTIVE==========================")
     for p in range(0, len(processlist)):
         #Calcular Turnaround = Tiempo de salida - tiempo de llegada
         turnaround.append(processlist[p].timeexit - processlist[p].arrtime)
         #Calcular Tiempo de espera = Turnaround - tiempo de cpu
         waitingtime.append(turnaround[p] - processlist[p].cputime)
-        print(processlist[p].pid, " T.ESPERA: ", waitingtime[p], " TURNAROUND: ", turnaround[p])
+        print(processlist[p].proccid, " T.ESPERA: ", waitingtime[p], " TURNAROUND: ", turnaround[p])
         print()
     acum1 = 0
     acum2 = 0
@@ -242,17 +243,17 @@ def run_schedule_preempt():
             print()
             print("LISTOS")
             for r in readyqueue:
-                print(r.pid, "(", r.timerem,")",end=" ")
+                print(r.proccid, "(", r.timerem,")",end=" ")
             print()
             print("CPU")
             if cpus[c] == "EMPTY":
                 print(cpus[c])
             else:
-                print(cpus[c].pid, "(", cpus[c].timerem, ")")
+                print(cpus[c].proccid, "(", cpus[c].timerem, ")")
             print()
             print("BLOQUEADOS")
             for blocked in blockedqueue:
-                print(blocked.pid, end=" ")
+                print(blocked.proccid, end=" ")
             print()
             print("=============================")
             
@@ -275,7 +276,7 @@ def run_schedule_preempt():
         turnaround.append(processlistb[p].timeexit - processlistb[p].arrtime)
         #Calcular Tiempo de espera = Turnaround - tiempo de cpu
         waitingtime.append(turnaround[p] - processlistb[p].cputime)
-        print(processlistb[p].pid, " T.ESPERA: ", waitingtime[p], " TURNAROUND: ", turnaround[p])
+        print(processlistb[p].proccid, " T.ESPERA: ", waitingtime[p], " TURNAROUND: ", turnaround[p])
         print()
     acum1 = 0
     acum2 = 0
@@ -286,6 +287,7 @@ def run_schedule_preempt():
 
     global waitavg2
     global turnar2
+    print("========================PREEMPTIVE==========================")
     waitavg2 = float(acum2/len(processlist))
     turnar2 = float(acum1/len(processlist))
     print("T.ESPERA PROMEDIO: ", waitavg2)
@@ -339,7 +341,7 @@ else:
 
 processlist = []
 processlistb = []
-
+iterador = 0
 for iter in range(4, len(lines)):
     iodictionary = {}
     if lines[iter] == "FIN":
@@ -366,10 +368,12 @@ for iter in range(4, len(lines)):
         else:
             print("DATOS NO VALIDOS")
             sys.exit()
-        process = Process(int(w0), int(w1), int(w2), int(w2), 0, int(w4), iodictionary)
+        process = Process(iterador, int(w0), int(w1), int(w2), int(w2), 0, int(w4), iodictionary)
         processlist.append(process)
-        process = Process(int(w0), int(w1), int(w2), int(w2), 0, int(w4), iodictionary)
+        process = Process(iterador, int(w0), int(w1), int(w2), int(w2), 0, int(w4), iodictionary)
         processlistb.append(process)
+
+        iterador += 1
         
 if politica == "PrioNotPreentive":
     run_schedule_nonpreempt()
@@ -384,9 +388,9 @@ else:
 print ("========================COMPARACIONES==============================")
 print ("PREEMPTIVE ", "AVG TURNAROUND: ", turnar2, " AVG WAIT TIME: ", waitavg2)
 print ("NONPREEMPTIVE ", "AVG TURNAROUND: ", turnar, " AVG WAIT TIME: ", waitavg)
-if (turnar2+waitavg2)/2.0 > (turnar + waitavg)/2.0):
+if (turnar2+waitavg2)/2.0 > (turnar + waitavg)/2.0:
     print("NONPREEMPTIVE es mas eficiente")
-elif (turnar2+waitavg2)/2.0 < (turnar + waitavg)/2.0):
+elif (turnar2+waitavg2)/2.0 < (turnar + waitavg)/2.0:
     print("PREEMPTIVE es mas eficiente")
 else:
     print("EMPATE")
